@@ -1,0 +1,5 @@
+terraform/
+.gitlab-ci.yml
+package.json
+pnpm-lock.yaml
+sample.env

@@ -1,0 +1,42 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - MIKRO_ORM_HOST=db
+    ports:
+      - '3000:3000'
+    depends_on:
+      - db
+      - caddy
+    command: pnpm dev
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: default-db
+    volumes:
+      - pgdata_development:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  caddy:
+    image: caddy:2
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./dev.Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data_development:/data
+      - caddy_config_development:/config
+
+volumes:
+  pgdata_development:
+  caddy_data_development:
+  caddy_config_development:

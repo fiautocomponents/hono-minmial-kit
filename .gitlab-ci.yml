@@ -1,0 +1,62 @@
+stages:
+  - release
+  - deploy
+
+variables:
+  AWS_ECR_URI: '$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com'
+  ECR_REPO: 'dummy-gitlab-repo/management-app-node'
+  ECS_CLUSTER: 'management-app-node-cluster'
+  ECS_SERVICE: 'management-app-node-ecs-service'
+
+release-image-gitlab:
+  stage: release
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: ['']
+  before_script:
+    - cp $ENV_FILE .env
+  script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $CI_REGISTRY_IMAGE:latest
+  only:
+    - main
+
+release-image-aws:
+  stage: release
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: ['']
+  variables:
+    AWS_REGION: $AWS_DEFAULT_REGION
+    AWS_ECR_REGISTRY: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/management-app/node
+    IMAGE_NAME: $AWS_ECR_REGISTRY/management-app-node
+  before_script:
+    - cp $ENV_FILE .env
+  script:
+    - echo "{\"credsStore\":\"ecr-login\",\"credHelpers\":{\"$AWS_ECR_REGISTRY\":\"ecr-login\"}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context $CI_PROJECT_DIR
+      --dockerfile $CI_PROJECT_DIR/Dockerfile
+      --build-arg AWS_REGION=$AWS_REGION 
+      --build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID 
+      --build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY 
+      --destination "${AWS_ECR_REGISTRY}:latest"
+  only:
+    - main
+
+deploy-ecr-aws:
+  stage: deploy
+  image:
+    name: amazon/aws-cli
+    entrypoint: ['']
+  before_script:
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    - aws configure set region $AWS_DEFAULT_REGION
+  script:
+    - aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
+  only:
+    - main
+  dependencies:
+    - release-image-aws
