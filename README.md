@@ -1,4 +1,4 @@
-# Node Hono Minimal Boilerplate
+# Hono Minimal Kit
 
 ## Table of Contents
 

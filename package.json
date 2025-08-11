@@ -1,5 +1,5 @@
 {
-  "name": "deno-hono-minimal-boilerplate",
+  "name": "node-minimal-kit",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
